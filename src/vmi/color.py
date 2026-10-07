@@ -1,19 +1,34 @@
-"""색 분석: HSV 통계, Hue 히스토그램, LAB k-means 대표색."""
+"""색 분석: HSV/LAB 통계, Hue 히스토그램, LAB k-means 대표색."""
 import cv2
 import numpy as np
 
 HUE_BIN = 5  # OpenCV Hue 범위는 0~179 (360도를 절반으로 저장) → 5단위로 36개 bin
 
 
-def hsv_stats(img: np.ndarray, sat_threshold: int, dark_threshold: int) -> tuple[dict, np.ndarray]:
-    """HSV 통계와 유채색 픽셀의 Hue 히스토그램(합=1)을 반환한다.
+def lab_chroma(img: np.ndarray) -> np.ndarray:
+    """픽셀별 LAB chroma = 회색 축(a=b=0)으로부터의 거리. 밝기로 나누지 않는다."""
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB).astype(np.float32)
+    a, b = lab[..., 1] - 128, lab[..., 2] - 128  # OpenCV 8-bit LAB는 a, b에 +128 offset
+    return np.hypot(a, b)
 
-    채도가 낮거나 너무 어두운 픽셀의 Hue는 noise이므로 히스토그램에서 제외한다.
+
+def color_stats(img: np.ndarray, method: str, sat_threshold: int, chroma_threshold: float,
+                dark_threshold: int) -> tuple[dict, np.ndarray]:
+    """색 통계와 유채색 픽셀의 Hue 히스토그램(합=1)을 반환한다.
+
+    method: 유채색 판정 기준
+      "hsv" — S >= sat_threshold  (S = (max-min)/max 라서 어둡거나 따뜻한 회색에서 과대평가됨, EXP-002)
+      "lab" — chroma >= chroma_threshold  (밝기와 독립)
+    비교를 위해 두 방법의 achromatic 비율은 항상 함께 기록한다.
+    Hue 값은 두 방법 모두 HSV의 H를 쓰고, 판정 기준(마스크)만 바뀐다.
     """
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    chroma = lab_chroma(img)
 
-    chromatic = (s >= sat_threshold) & (v >= dark_threshold)
+    colorful = {"hsv": s >= sat_threshold, "lab": chroma >= chroma_threshold}
+    chromatic = colorful[method] & (v >= dark_threshold)  # 너무 어두운 픽셀의 Hue는 noise
+
     hist = np.bincount(h[chromatic] // HUE_BIN, minlength=180 // HUE_BIN).astype(np.float64)
     if hist.sum() > 0:
         hist /= hist.sum()
@@ -21,7 +36,9 @@ def hsv_stats(img: np.ndarray, sat_threshold: int, dark_threshold: int) -> tuple
     stats = {
         "mean_s": float(s.mean()),
         "mean_v": float(v.mean()),
-        "achromatic_ratio": float((s < sat_threshold).mean()),
+        "mean_chroma": float(chroma.mean()),
+        "achromatic_hsv": float((~colorful["hsv"]).mean()),
+        "achromatic_lab": float((~colorful["lab"]).mean()),
         "dark_ratio": float((v < dark_threshold).mean()),
         "chromatic_ratio": float(chromatic.mean()),
     }
@@ -75,7 +92,8 @@ def render_color_panel(img, palette, hue_hist, stats) -> np.ndarray:
             cv2.putText(canvas, f"{to_hex(color)} {ratio:.0%}", (w + 10, y + 16), font, 0.45, text_color, 1, cv2.LINE_AA)
         y = y_end
 
-    # Hue 히스토그램: 각 막대를 해당 Hue의 색으로 칠한다
+    # Hue 히스토그램: 각 막대를 해당 Hue의 색으로 칠한다.
+    # 높이에 chromatic_ratio를 곱해, 유채색 픽셀이 적은 사진은 막대도 낮게 보이도록 한다 (EXP-002 원인 2).
     total_w = w + pal_w
     n_bins = len(hue_hist)
     bar_w = total_w / n_bins
@@ -84,7 +102,7 @@ def render_color_panel(img, palette, hue_hist, stats) -> np.ndarray:
     for i, value in enumerate(hue_hist):
         if peak == 0:
             break
-        bar_h = round(value / peak * max_bar)
+        bar_h = round(value / peak * max_bar * stats["chromatic_ratio"])
         hue = i * HUE_BIN + HUE_BIN // 2
         bar_color = cv2.cvtColor(np.uint8([[[hue, 200, 230]]]), cv2.COLOR_HSV2BGR)[0, 0].tolist()
         x0, x1 = round(i * bar_w) + 1, round((i + 1) * bar_w) - 1
@@ -92,7 +110,7 @@ def render_color_panel(img, palette, hue_hist, stats) -> np.ndarray:
     if peak == 0:
         cv2.putText(canvas, "no chromatic pixels", (10, base_y - 10), font, 0.45, fg, 1, cv2.LINE_AA)
 
-    text = (f"S {stats['mean_s']:.0f}  V {stats['mean_v']:.0f}  "
-            f"achromatic {stats['achromatic_ratio']:.0%}  dark {stats['dark_ratio']:.0%}")
+    text = (f"chromatic {stats['chromatic_ratio']:.0%}  |  achromatic hsv {stats['achromatic_hsv']:.0%} "
+            f"lab {stats['achromatic_lab']:.0%}  |  dark {stats['dark_ratio']:.0%}  V {stats['mean_v']:.0f}")
     cv2.putText(canvas, text, (10, h + hist_h - 10), font, 0.45, fg, 1, cv2.LINE_AA)
     return canvas

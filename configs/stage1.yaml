@@ -11,5 +11,7 @@ resize:
 color:
   k: 5                # 대표색 개수
   sample_size: 20000  # k-means에 사용할 무작위 픽셀 수
-  sat_threshold: 40   # S(0~255) 미만 → 무채색으로 간주, Hue 히스토그램에서 제외
-  dark_threshold: 50  # V(0~255) 미만 → 어두운 픽셀로 간주, Hue 히스토그램에서 제외
+  method: lab          # 유채색 판정 기준: hsv | lab  (EXP-003)
+  sat_threshold: 40    # [hsv] S(0~255) 미만 → 무채색
+  chroma_threshold: 15 # [lab] chroma 미만 → 무채색. 10/15/20 비교 후 확정 (EXP-003)
+  dark_threshold: 50   # V(0~255) 미만 → 어두운 픽셀, Hue 히스토그램에서 제외
