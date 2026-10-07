@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data & outputs (용량/라이선스 문제로 git에 올리지 않음)
+data/raw/
+data/masks/
+results/
+
+# IDE
+.idea/
+.vscode/
