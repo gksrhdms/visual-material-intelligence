@@ -7,7 +7,7 @@ Phase 1 Classical CV pipeline 검증용 소규모 이미지 세트. 학습용이
 | 항목 | 값 |
 |---|---|
 | Number of images | 25 |
-| Sources | (a) 직접 촬영, (b) Unsplash / Pexels |
+| Sources | Pinterest 25장 (원작자/라이선스 미확인 — 내부 실험 전용) |
 | Resolution | 최소 285×427 (019) ~ 최대 1200×1912 (020), 전부 세로 비율 |
 | Conditions | plain 5 / complexbg 5 / pattern 5 / glossy(leather·metallic·satin) 4 / sheer·mesh 3 / black·white·mono 3 |
 | Annotation | 없음 (Phase 1 후반에 silhouette GT mask 10장 추가) |
@@ -61,6 +61,7 @@ Phase 1 Classical CV pipeline 검증용 소규모 이미지 세트. 학습용이
 (수집 후 작성: 성별/체형/피부톤/포즈/조명의 치우침)
 
 ## License Notes
+- **현재 25장은 모두 Pinterest 출처로 원작자 저작권이 확인되지 않았다.** pipeline 개발·내부 평가에만 사용하며, README·demo 영상 등 공개 결과물에는 사용하지 않는다. 공개용 결과는 직접 촬영 또는 Unsplash/Pexels 이미지로 교체해 생성한다.
 - Unsplash / Pexels: 무료 사용 가능, 출처 표기는 권장 사항이지만 포트폴리오에서는 항상 기록한다.
 - 원본 이미지는 git에 올리지 않는다 (`.gitignore`의 `data/raw/`).
 - 인물이 식별되는 직접 촬영 사진은 공개 전 촬영 대상의 동의를 받는다.
