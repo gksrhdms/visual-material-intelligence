@@ -35,7 +35,14 @@ def resize_max_side(img: np.ndarray, max_side: int) -> np.ndarray:
 
 
 def save_image(img: np.ndarray, path: Path) -> None:
-    """상위 폴더가 없으면 만들고 이미지를 저장한다."""
+    """상위 폴더가 없으면 만들고 이미지를 저장한다.
+
+    cv2.imwrite는 실패해도 False만 반환하고 이유를 알려주지 않는다.
+    인코딩(cv2.imencode)과 파일 쓰기(Python)를 분리해서, 쓰기 실패 시
+    PermissionError 등 OS의 실제 원인이 에러 메시지에 나오도록 한다.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not cv2.imwrite(str(path), img):
-        raise IOError(f"이미지를 저장할 수 없습니다: {path}")
+    ok, buf = cv2.imencode(path.suffix, img)
+    if not ok:
+        raise IOError(f"이미지를 인코딩할 수 없습니다 ({path.suffix}): {path}")
+    path.write_bytes(buf.tobytes())
