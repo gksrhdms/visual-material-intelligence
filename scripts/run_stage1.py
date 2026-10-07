@@ -14,6 +14,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))  # src/vmi를 import하기 위해 경로 추가
 
+from vmi.color import dominant_colors, hsv_stats, render_color_panel, to_hex  # noqa: E402
 from vmi.io_utils import list_images, load_image, resize_max_side, save_image  # noqa: E402
 
 
@@ -33,6 +34,17 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
     timing["width"], timing["height"] = w, h
 
     save_image(img, out_dir / "original" / path.name)
+
+    # --- Color analysis (Task 3~4) ---
+    c = cfg["color"]
+    t0 = time.perf_counter()
+    stats, hue_hist = hsv_stats(img, c["sat_threshold"], c["dark_threshold"])
+    palette = dominant_colors(img, c["k"], c["sample_size"], cfg["seed"])
+    timing["color_ms"] = (time.perf_counter() - t0) * 1000
+
+    save_image(render_color_panel(img, palette, hue_hist, stats), out_dir / "color" / f"{path.stem}.png")
+    timing.update({key: round(value, 3) for key, value in stats.items()})
+    timing["dominant_hex"] = to_hex(palette[0][0])
     return timing
 
 
@@ -59,7 +71,8 @@ def main():
             continue
         rows.append(row)
         print(f"  {row['file']:<24} {row['width']}x{row['height']:<5} "
-              f"load {row['load_ms']:6.1f} ms | resize {row['resize_ms']:5.1f} ms")
+              f"load {row['load_ms']:6.1f} ms | resize {row['resize_ms']:5.1f} ms | "
+              f"color {row['color_ms']:6.1f} ms | achromatic {row['achromatic_ratio']:.0%}")
 
     if rows:
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -68,7 +81,7 @@ def main():
             writer.writeheader()
             writer.writerows(rows)
 
-        for key in ["load_ms", "resize_ms"]:
+        for key in [k for k in rows[0] if k.endswith("_ms")]:
             values = [r[key] for r in rows]
             print(f"{key:<10} mean {sum(values) / len(values):6.1f} ms | max {max(values):6.1f} ms")
 

@@ -3,6 +3,13 @@
 
 input_dir: data/raw
 output_dir: results
+seed: 42          # k-means 등 무작위 요소를 재현 가능하게 고정
 
 resize:
   max_side: 768   # 긴 변 기준 최대 크기(px). 이보다 작은 이미지는 확대하지 않는다.
+
+color:
+  k: 5                # 대표색 개수
+  sample_size: 20000  # k-means에 사용할 무작위 픽셀 수
+  sat_threshold: 40   # S(0~255) 미만 → 무채색으로 간주, Hue 히스토그램에서 제외
+  dark_threshold: 50  # V(0~255) 미만 → 어두운 픽셀로 간주, Hue 히스토그램에서 제외
