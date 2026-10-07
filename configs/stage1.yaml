@@ -1,0 +1,8 @@
+# PHASE 1 — Classical CV pipeline 설정
+# 실험할 때는 코드 대신 이 파일의 값을 바꾸고, 변경 이유를 docs/experiments.md에 기록한다.
+
+input_dir: data/raw
+output_dir: results
+
+resize:
+  max_side: 768   # 긴 변 기준 최대 크기(px). 이보다 작은 이미지는 확대하지 않는다.
