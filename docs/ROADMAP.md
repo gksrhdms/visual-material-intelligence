@@ -62,7 +62,7 @@ opencv-python, numpy, matplotlib, pyyaml
 딥러닝 없이 OpenCV만으로 이미지 → 6종 결과(Original / Edge / Color / Texture / Silhouette / Material Map)를 자동 생성하는 end-to-end pipeline. 이후 모든 PHASE의 **baseline**이 된다.
 
 **Tasks**
-1. 이미지 입력 2. resize 3. HSV/LAB 변환 4. color analysis(히스토그램, k-means 팔레트) 5. edge(Canny) 6. contour 7. texture(local std, Laplacian) 8. silhouette(GrabCut vs Otsu) 9. visualization(Material Map, contact sheet) 10. batch processing + 처리시간 기록
+1. 이미지 입력 2. resize 3. HSV/LAB 변환 4. color analysis(히스토그램, k-means 팔레트) 5. edge(Canny) 6. contour 7. silhouette(GrabCut vs Otsu) 8. texture(local std, Laplacian) — EXP-002~004에서 통계가 배경에 좌우되는 문제가 반복되어 silhouette을 먼저 진행 9. visualization(Material Map, contact sheet) 10. batch processing + 처리시간 기록
 
 **Files**
 `configs/stage1.yaml`, `src/vmi/{io_utils,color,edge,texture,silhouette,material_map}.py`, `scripts/run_stage1.py`, `docs/experiments.md`

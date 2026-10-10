@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))  # src/vmi를 import하기 위해 경로 �
 from vmi.color import color_stats, dominant_colors, render_color_panel, to_hex  # noqa: E402
 from vmi.edge import edge_analysis, render_edge_panel  # noqa: E402
 from vmi.io_utils import list_images, load_image, resize_max_side, save_image  # noqa: E402
+from vmi.silhouette import render_silhouette_panel, silhouette_analysis  # noqa: E402
 
 
 def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
@@ -58,6 +59,13 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
 
     save_image(render_edge_panel(img, edges, contours, stats, e["method"]), out_dir / "edge" / f"{path.stem}.png")
     timing.update({key: round(value, 4) for key, value in stats.items()})
+
+    # --- Silhouette (Task 8) ---
+    s = cfg["silhouette"]
+    masks, stats = silhouette_analysis(img, s, cfg["seed"])  # 방법별 시간은 함수 안에서 잰다
+    save_image(render_silhouette_panel(img, masks, stats, s["method"]), out_dir / "silhouette" / f"{path.stem}.png")
+    save_image(masks[s["method"]], out_dir / "silhouette" / "mask" / f"{path.stem}.png")
+    timing.update({key: round(value, 4) for key, value in stats.items()})
     return timing
 
 
@@ -83,10 +91,9 @@ def main():
             print(f"  [FAIL] {path.name}: {e}")
             continue
         rows.append(row)
-        print(f"  {row['file']:<20} color {row['color_ms']:6.1f} ms | edge {row['edge_ms']:5.1f} ms | "
-              f"density fixed {row['edge_density_fixed']:5.1%} auto {row['edge_density_auto']:5.1%} "
-              f"(T {row['auto_low']:>3}/{row['auto_high']:<3}) | "
-              f"contours {row['n_contours']:>4} -> long {row['n_contours_long']:>3}")
+        print(f"  {row['file']:<20} otsu {row['otsu_ms']:5.1f} ms | grabcut {row['grabcut_ms']:7.1f} ms | "
+              f"area otsu {row['area_otsu']:4.0%} grabcut {row['area_grabcut']:4.0%} | "
+              f"agreement IoU {row['agreement_iou']:.2f}")
 
     if rows:
         out_dir.mkdir(parents=True, exist_ok=True)
