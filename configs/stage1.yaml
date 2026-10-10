@@ -15,3 +15,11 @@ color:
   sat_threshold: 40    # [hsv] S(0~255) 미만 → 무채색
   chroma_threshold: 15 # [lab] chroma 미만 → 무채색. 10/15/20 비교 후 확정 (EXP-003)
   dark_threshold: 50   # V(0~255) 미만 → 어두운 픽셀, Hue 히스토그램에서 제외
+
+edge:
+  blur_ksize: 5           # Canny 전 Gaussian blur 커널 크기 (홀수). cv2.Canny는 blur를 하지 않는다.
+  method: fixed           # contour/패널에 사용할 방식: fixed | auto  (EXP-004)
+  fixed_low: 100          # [fixed] hysteresis 하한 — baseline
+  fixed_high: 200         # [fixed] hysteresis 상한 — baseline
+  auto_sigma: 0.33        # [auto] threshold = (1 ± sigma) × 밝기 median
+  min_contour_length: 50  # 이보다 짧은 contour(px)는 노이즈로 보고 제외

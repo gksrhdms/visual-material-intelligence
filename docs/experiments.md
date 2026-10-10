@@ -102,3 +102,47 @@ blur kernel, Canny threshold, texture window는 픽셀 단위이므로 해상도
 1. 현재 T는 배경 픽셀이 지배하는 분포로 정해졌다. 측정 대상(의상)과 다름 → Task 8 silhouette 이후 사람 영역만으로 재확인.
 2. 최적 T는 정답 정의 + 목표(precision vs recall)가 있어야 결정 가능 → PHASE 3에서 patch GT 라벨링 후 precision-recall 곡선으로 확정. 우선 확인 대상: T 근처 픽셀 비중이 큰 005, 012, 018.
 3. 피부는 실제 유채색 → 사람 silhouette으로도 제거 불가, 의상/피부 분리 필요 (PHASE 2 문제 정의 후보).
+
+---
+
+## EXP-004 — Canny threshold: fixed vs auto(median) (PHASE 1, Task 5~6)
+
+**설정**
+- 전처리: grayscale → GaussianBlur 5×5 (cv2.Canny는 blur를 포함하지 않음)
+- fixed: (100, 200) — baseline / auto: (1 ± 0.33) × 밝기 median
+- contour: `RETR_LIST`, 길이 50px 미만 제외
+- 시간: edge 단계 median 5.6 ms (두 방식 Canny + contour 포함)
+
+**결과 — 그룹별 edge density (fixed)**
+| plain | complexbg | pattern | glossy | sheer | mono |
+|---|---|---|---|---|---|
+| 1.0% | 5.3% | 5.2% | 2.6% | 2.0% | 3.2% (023: 1.2%, 024: 0.7%, 025: 7.7%) |
+
+- edge density는 대비의 "세기"가 아니라 경계선의 "총 길이"를 잰다. 검은 옷 + 흰 배경(023, 024)은 대비는 강하지만 선이 외곽선 하나뿐이라 density가 가장 낮은 축에 속한다.
+- 025가 mono 그룹에서만 높은 것은 옷이 아니라 거리 배경 때문 → 그룹 평균도 배경에 좌우된다.
+
+**결과 — auto threshold의 실패 양상**
+| 이미지 | 밝기 조건 | auto T | density fixed → auto |
+|---|---|---|---|
+| 022_sheer | 밝은 배경 | 148 / 255 | 0.5% → 0.2% |
+| 020_sheer | 밝은 배경 | 131 / 255 | 1.2% → 0.7% |
+| 009_complexbg | 어두움 | 33 / 66 | 4.2% → 11.2% |
+| 019_satin | 매우 어두움 | 5 / 10 | 3.2% → 12.3% |
+
+- auto는 장면을 "이해"하지 않고 밝기 median 숫자 하나만 본다.
+- Canny threshold는 밝기가 아니라 **gradient 크기(이웃 픽셀 간 차이)**에 적용된다. 밝기 median은 gradient 크기와 직접 관계가 없다 → 균일한 배경이 화면을 지배하면 median이 배경 밝기를 따라가 threshold가 양극단으로 튄다 (상한 255 포화, 또는 5/10처럼 노이즈 수준).
+
+**정성 관찰 (contour 패널)**
+- 023 (단색 배경): 가장 긴 contour가 실제로 인물 외곽선. 단, 머리(금발 vs 밝은 배경)와 손에서 끊겨 닫힌 곡선이 아니다.
+- 007 (복잡한 배경): 가장 긴 contour는 배경의 비계 기둥. 인물 edge는 조각나 있다.
+- 013 (패턴): density 9.2%의 대부분은 셔츠 줄무늬가 아니라 배경 셔터의 가로선. 가는 줄무늬는 5×5 blur에서 대부분 사라졌다 → edge는 미세한 패턴을 재는 도구가 아니다 (Task 7 texture의 근거).
+
+**결정: method = fixed (100, 200)**
+- resize(768) + 동일 blur 이후에는 이미지 간 gradient 스케일이 비슷해 고정값이 일관된 결과를 준다.
+- auto는 밝은/어두운 배경 양쪽에서 불안정. 필요해지면 밝기가 아닌 gradient 크기의 percentile 기반 threshold를 후보로 검토.
+
+**결론 — edge만으로 silhouette을 만들 수 없는 이유**
+1. 끊김: 대비가 약한 구간에서 외곽선이 닫히지 않는다 (023 머리).
+2. 소속 불명: edge는 그 선이 사람의 것인지 배경의 것인지 모른다 (007, 013).
+3. 내부 edge: 주름, 라펠, 무늬 경계가 외곽선과 섞인다.
+→ silhouette은 경계(edge)가 아니라 영역(region) 기반 방법이 필요하다 (Task 8: GrabCut).

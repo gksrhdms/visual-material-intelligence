@@ -5,6 +5,7 @@
 """
 import argparse
 import csv
+import statistics
 import sys
 import time
 from pathlib import Path
@@ -15,6 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))  # src/vmi를 import하기 위해 경로 추가
 
 from vmi.color import color_stats, dominant_colors, render_color_panel, to_hex  # noqa: E402
+from vmi.edge import edge_analysis, render_edge_panel  # noqa: E402
 from vmi.io_utils import list_images, load_image, resize_max_side, save_image  # noqa: E402
 
 
@@ -46,6 +48,16 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
     save_image(render_color_panel(img, palette, hue_hist, stats), out_dir / "color" / f"{path.stem}.png")
     timing.update({key: round(value, 3) for key, value in stats.items()})
     timing["dominant_hex"] = to_hex(palette[0][0])
+
+    # --- Edge & contour (Task 5~6) ---
+    e = cfg["edge"]
+    t0 = time.perf_counter()
+    edges, contours, stats = edge_analysis(img, e["method"], e["blur_ksize"], e["fixed_low"], e["fixed_high"],
+                                           e["auto_sigma"], e["min_contour_length"])
+    timing["edge_ms"] = (time.perf_counter() - t0) * 1000
+
+    save_image(render_edge_panel(img, edges, contours, stats, e["method"]), out_dir / "edge" / f"{path.stem}.png")
+    timing.update({key: round(value, 4) for key, value in stats.items()})
     return timing
 
 
@@ -71,10 +83,10 @@ def main():
             print(f"  [FAIL] {path.name}: {e}")
             continue
         rows.append(row)
-        print(f"  {row['file']:<24} {row['width']}x{row['height']:<5} "
-              f"load {row['load_ms']:6.1f} ms | resize {row['resize_ms']:5.1f} ms | "
-              f"color {row['color_ms']:6.1f} ms | "
-              f"achromatic hsv {row['achromatic_hsv']:4.0%} -> lab {row['achromatic_lab']:4.0%}")
+        print(f"  {row['file']:<20} color {row['color_ms']:6.1f} ms | edge {row['edge_ms']:5.1f} ms | "
+              f"density fixed {row['edge_density_fixed']:5.1%} auto {row['edge_density_auto']:5.1%} "
+              f"(T {row['auto_low']:>3}/{row['auto_high']:<3}) | "
+              f"contours {row['n_contours']:>4} -> long {row['n_contours_long']:>3}")
 
     if rows:
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -85,7 +97,9 @@ def main():
 
         for key in [k for k in rows[0] if k.endswith("_ms")]:
             values = [r[key] for r in rows]
-            print(f"{key:<10} mean {sum(values) / len(values):6.1f} ms | max {max(values):6.1f} ms")
+            # 첫 이미지의 warm-up 이상값이 mean을 끌어올리므로 median을 함께 본다 (EXP-001)
+            print(f"{key:<10} mean {sum(values) / len(values):6.1f} ms | "
+                  f"median {statistics.median(values):6.1f} ms | max {max(values):6.1f} ms")
 
     print(f"done: {len(rows)} ok, {len(failed)} failed -> {out_dir}")
 
