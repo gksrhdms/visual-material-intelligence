@@ -37,3 +37,12 @@ texture:
   window: 7         # local std 창 크기(px). mask도 이 크기로 erode해서 실루엣 경계를 제외한다
   std_scale: 64     # 시각화 고정 스케일 (이미지 간 비교 가능하도록 이미지별 정규화를 하지 않음)
   lap_scale: 64
+
+material_map:
+  canvas: [1080, 1350]   # 4:5 에디토리얼 비율
+  cell: 8                # 점 하나가 대표하는 칸 크기(px, 원본 기준)
+  std_scale: 40          # 점 크기 스케일: local std 40 이상이면 최대 크기
+  show_edges: true
+  font: C:/Windows/Fonts/bahnschrift.ttf
+  font_mono: C:/Windows/Fonts/consola.ttf
+  footer: "grabcut x0.33 · chroma T15 · cell 8px · texture 7px"
