@@ -13,7 +13,7 @@ def lab_chroma(img: np.ndarray) -> np.ndarray:
 
 
 def color_stats(img: np.ndarray, method: str, sat_threshold: int, chroma_threshold: float,
-                dark_threshold: int) -> tuple[dict, np.ndarray]:
+                dark_threshold: int, mask: np.ndarray | None = None) -> tuple[dict, np.ndarray]:
     """색 통계와 유채색 픽셀의 Hue 히스토그램(합=1)을 반환한다.
 
     method: 유채색 판정 기준
@@ -21,10 +21,18 @@ def color_stats(img: np.ndarray, method: str, sat_threshold: int, chroma_thresho
       "lab" — chroma >= chroma_threshold  (밝기와 독립)
     비교를 위해 두 방법의 achromatic 비율은 항상 함께 기록한다.
     Hue 값은 두 방법 모두 HSV의 H를 쓰고, 판정 기준(마스크)만 바뀐다.
+    mask가 주어지면 mask > 0인 픽셀(사람 영역)만으로 계산한다 (EXP-006).
     """
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
     chroma = lab_chroma(img)
+
+    if mask is not None:
+        keep = mask > 0
+        if not keep.any():
+            raise ValueError("mask가 비어 있어 색 통계를 계산할 수 없습니다")
+        # 2D 배열 → mask 안의 픽셀만 남긴 1D 배열. 아래 계산은 1D에서도 똑같이 동작한다
+        h, s, v, chroma = h[keep], s[keep], v[keep], chroma[keep]
 
     colorful = {"hsv": s >= sat_threshold, "lab": chroma >= chroma_threshold}
     chromatic = colorful[method] & (v >= dark_threshold)  # 너무 어두운 픽셀의 Hue는 noise
@@ -45,10 +53,16 @@ def color_stats(img: np.ndarray, method: str, sat_threshold: int, chroma_thresho
     return stats, hist
 
 
-def dominant_colors(img: np.ndarray, k: int, sample_size: int, seed: int) -> list[tuple[np.ndarray, float]]:
-    """LAB 공간에서 k-means로 대표색 k개를 찾아 [(BGR 색, 비율), ...]를 비율 내림차순으로 반환한다."""
+def dominant_colors(img: np.ndarray, k: int, sample_size: int, seed: int,
+                    mask: np.ndarray | None = None) -> list[tuple[np.ndarray, float]]:
+    """LAB 공간에서 k-means로 대표색 k개를 찾아 [(BGR 색, 비율), ...]를 비율 내림차순으로 반환한다.
+
+    mask가 주어지면 mask > 0인 픽셀만 사용한다.
+    """
     lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     pixels = lab.reshape(-1, 3).astype(np.float32)
+    if mask is not None:
+        pixels = pixels[mask.reshape(-1) > 0]
 
     # 모든 픽셀(약 40만 개) 대신 무작위 샘플로 계산 → 속도 확보, 비율은 샘플로 추정
     rng = np.random.default_rng(seed)

@@ -10,6 +10,7 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,15 +39,28 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
 
     save_image(img, out_dir / "original" / path.name)
 
-    # --- Color analysis (Task 3~4) ---
+    # --- Silhouette (Task 7) — 이후 단계가 사람 영역만 분석하도록 가장 먼저 실행 ---
+    s = cfg["silhouette"]
+    masks, stats = silhouette_analysis(img, s, cfg["seed"])  # 방법별 시간은 함수 안에서 잰다
+    mask = masks[s["method"]]
+    save_image(render_silhouette_panel(img, masks, stats, s["method"]), out_dir / "silhouette" / f"{path.stem}.png")
+    save_image(mask, out_dir / "silhouette" / "mask" / f"{path.stem}.png")
+    timing.update({key: round(value, 4) for key, value in stats.items()})
+
+    # --- Color analysis (Task 3~4) — 사람 영역(mask) 안에서만 계산 (EXP-006) ---
     c = cfg["color"]
     t0 = time.perf_counter()
     stats, hue_hist = color_stats(img, c["method"], c["sat_threshold"], c["chroma_threshold"],
-                                  c["dark_threshold"])
-    palette = dominant_colors(img, c["k"], c["sample_size"], cfg["seed"])
+                                  c["dark_threshold"], mask)
+    palette = dominant_colors(img, c["k"], c["sample_size"], cfg["seed"], mask)
     timing["color_ms"] = (time.perf_counter() - t0) * 1000
 
-    save_image(render_color_panel(img, palette, hue_hist, stats), out_dir / "color" / f"{path.stem}.png")
+    whole, _ = color_stats(img, c["method"], c["sat_threshold"], c["chroma_threshold"], c["dark_threshold"])
+    timing["achromatic_lab_whole"] = round(whole["achromatic_lab"], 3)  # 비교용: 사진 전체 기준
+
+    cutout = np.full_like(img, 20)  # 패널에는 분석에 쓰인 사람 영역만 보여준다
+    cutout[mask > 0] = img[mask > 0]
+    save_image(render_color_panel(cutout, palette, hue_hist, stats), out_dir / "color" / f"{path.stem}.png")
     timing.update({key: round(value, 3) for key, value in stats.items()})
     timing["dominant_hex"] = to_hex(palette[0][0])
 
@@ -58,13 +72,6 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
     timing["edge_ms"] = (time.perf_counter() - t0) * 1000
 
     save_image(render_edge_panel(img, edges, contours, stats, e["method"]), out_dir / "edge" / f"{path.stem}.png")
-    timing.update({key: round(value, 4) for key, value in stats.items()})
-
-    # --- Silhouette (Task 8) ---
-    s = cfg["silhouette"]
-    masks, stats = silhouette_analysis(img, s, cfg["seed"])  # 방법별 시간은 함수 안에서 잰다
-    save_image(render_silhouette_panel(img, masks, stats, s["method"]), out_dir / "silhouette" / f"{path.stem}.png")
-    save_image(masks[s["method"]], out_dir / "silhouette" / "mask" / f"{path.stem}.png")
     timing.update({key: round(value, 4) for key, value in stats.items()})
     return timing
 
@@ -91,9 +98,9 @@ def main():
             print(f"  [FAIL] {path.name}: {e}")
             continue
         rows.append(row)
-        print(f"  {row['file']:<20} otsu {row['otsu_ms']:5.1f} ms | grabcut {row['grabcut_ms']:7.1f} ms | "
-              f"area otsu {row['area_otsu']:4.0%} grabcut {row['area_grabcut']:4.0%} | "
-              f"agreement IoU {row['agreement_iou']:.2f}")
+        print(f"  {row['file']:<20} grabcut {row['grabcut_ms']:6.1f} ms | color {row['color_ms']:5.1f} ms | "
+              f"achromatic(lab) whole {row['achromatic_lab_whole']:4.0%} -> person {row['achromatic_lab']:4.0%} | "
+              f"dominant {row['dominant_hex']}")
 
     if rows:
         out_dir.mkdir(parents=True, exist_ok=True)
