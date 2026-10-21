@@ -5,8 +5,8 @@
 
 | PHASE | 이름 | 상태 | 예상 기간 |
 |---|---|---|---|
-| 0 | Environment | 🔄 진행 중 | 2~3일 |
-| 1 | Classical CV Prototype | ⏳ | 2주 |
+| 0 | Environment | ✅ 완료 (10-07) | 2~3일 |
+| 1 | Classical CV Prototype | ✅ 완료 (10-21) — [report](PHASE1_REPORT.md) | 2주 |
 | 2 | Deep Learning (pretrained inference) | ⏳ | 2주 |
 | 3 | Evaluation | ⏳ | 1주 |
 | 4 | Fine-tuning | ⏳ | 3주 |
@@ -71,21 +71,21 @@ opencv-python, numpy, matplotlib, pyyaml
 Phase 0과 동일 (+ texture 단계에서 scikit-image 검토 — 추가 전 정당화)
 
 **Expected Output**
-`results/{original,edge,color,texture,silhouette,material_map}/` 에 이미지별 결과, `results/contact_sheet.png`, `results/timing.csv`
+`results/{original,edge,color,texture,silhouette,material_map,material_map_gt}/` 에 이미지별 결과, `results/sheets/{material_map_grid,stages}.png`, `results/timing.csv`, `results/eval_silhouette.csv`
 
 **Evaluation**
 - 이미지당 평균/최대 처리시간 (ms)
-- Silhouette: 직접 그린 GT mask 10장 기준 IoU (GrabCut vs Otsu)
+- Silhouette: GT mask 25장 기준 IoU / precision / recall (GrabCut vs Otsu)
 - 정성 평가: 실패 사례 5장 이상 분류
 
 **Definition of Done**
-- [ ] 20개 이상의 이미지 처리 가능
-- [ ] 모든 결과 자동 저장
-- [ ] 실행 명령어가 README에 존재
-- [ ] 에러 없이 전체 pipeline 실행
-- [ ] 결과 이미지 확인 가능 (contact sheet)
-- [ ] 최소 3개의 visual output 비교 가능
-- [ ] Silhouette IoU, 처리시간 수치 기록
+- [x] 20개 이상의 이미지 처리 가능 — 25장
+- [x] 모든 결과 자동 저장 — 7개 결과 폴더 + CSV 2종
+- [x] 실행 명령어가 README에 존재
+- [x] 에러 없이 전체 pipeline 실행 — 25 ok, 0 failed
+- [x] 결과 이미지 확인 가능 (contact sheet) — `results/sheets/`
+- [x] 최소 3개의 visual output 비교 가능 — `stages.png` (5단계 비교)
+- [x] Silhouette IoU, 처리시간 수치 기록 — EXP-001~007, PHASE1_REPORT
 
 ---
 
