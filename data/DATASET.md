@@ -10,7 +10,7 @@ Phase 1 Classical CV pipeline 검증용 소규모 이미지 세트. 학습용이
 | Sources | Pinterest 25장 (원작자/라이선스 미확인 — 내부 실험 전용) |
 | Resolution | 최소 285×427 (019) ~ 최대 1200×1912 (020), 전부 세로 비율 |
 | Conditions | plain 5 / complexbg 5 / pattern 5 / glossy(leather·metallic·satin) 4 / sheer·mesh 3 / black·white·mono 3 |
-| Annotation | 없음 (Phase 1 후반에 silhouette GT mask 10장 추가) |
+| Annotation | Silhouette GT mask 25장 (`data/masks/`, 이진 mask, `results/original` 해상도) — 아래 Annotation 절 참고 |
 | Split | 없음 (평가 전용) |
 
 ## 수집 기준 — 일부러 다양하게
@@ -56,6 +56,20 @@ Phase 1 Classical CV pipeline 검증용 소규모 이미지 세트. 학습용이
 | 023_allblack.jpg | pinterest | | | 올블랙 |
 | 024_monochrome.jpg | pinterest | | | 모노톤 |
 | 025_allwhite.jpg | pinterest | | | 올화이트 |
+
+## Annotation — Silhouette GT
+- 도구: Photoroom (AI 배경 제거 기반 웹 도구)으로 생성
+- 검수: 원본 위 overlay로 25장 전수 확인. 009에서 소파 전체가 전경으로 잡힌 오류를 발견해 수정 (면적 55% → 14%)
+- 형식: JPG로 저장되어 경계에 회색 픽셀이 0.01~0.26% 존재 → 평가 시 127 기준 이진화. 이후 mask는 무손실 PNG로 저장한다.
+- 라벨 규칙:
+  | 대상 | 규칙 |
+  |---|---|
+  | 머리카락, 피부, 옷, 신발 | 포함 |
+  | 들고 있는 가방·액세서리 | 포함 |
+  | 반투명 천 (021 튤 등) | 포함 (옷의 일부) |
+  | 사진 속 모든 인물 (008: 2명) | 포함 |
+  | 바닥 그림자, 신체 사이의 배경 | 제외 |
+- 한계: GT 자체가 AI 모델의 출력에서 출발했으므로, 그 모델이 체계적으로 틀리는 영역(반투명 천 경계, 잔머리)은 사람이 확인한 만큼만 정확하다.
 
 ## Potential Bias
 (수집 후 작성: 성별/체형/피부톤/포즈/조명의 치우침)

@@ -31,4 +31,4 @@ silhouette:
   grabcut_margin_x: 0.05   # [grabcut] 초기 사각형의 좌우 여백 (이미지 너비 대비). 바깥은 확실한 배경
   grabcut_margin_y: 0.02   # [grabcut] 초기 사각형의 상하 여백 (이미지 높이 대비)
   grabcut_iterations: 5    # [grabcut] 반복 횟수
-  grabcut_scale: 0.5       # [grabcut] 계산 해상도 배율. 1.0이면 장당 3~13초 (EXP-005)
+  grabcut_scale: 0.33      # [grabcut] 계산 해상도 배율. x0.5와 IoU 차이 없음, 3배 빠름 (EXP-005)
