@@ -18,15 +18,10 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from vmi.dataset import group_of  # noqa: E402
 from vmi.io_utils import list_images, load_image, resize_max_side  # noqa: E402
 from vmi.metrics import binary_metrics  # noqa: E402
 from vmi.silhouette import grabcut_mask, otsu_mask, postprocess_mask  # noqa: E402
-
-
-# 파일명 접미사 → DATASET.md의 6개 수집 조건
-GROUPS = {"leather": "glossy", "metalic": "glossy", "satin": "glossy",
-          "sheer": "sheer", "mesh": "sheer",
-          "allblack": "mono", "monochrome": "mono", "allwhite": "mono"}
 
 
 def build_methods(cfg: dict, scales: list[float]) -> dict:
@@ -74,7 +69,7 @@ def main():
             pred = fn(img)
             ms = (time.perf_counter() - t0) * 1000
             m = binary_metrics(pred, gt)
-            records.append({"file": gt_path.stem, "group": GROUPS.get(gt_path.stem.split("_", 1)[1], gt_path.stem.split("_", 1)[1]),
+            records.append({"file": gt_path.stem, "group": group_of(gt_path.stem),
                             "method": name, "ms": round(ms, 1), **{k: round(v, 4) for k, v in m.items()}})
             ious.append(f"{m['iou']:.3f}")
         print(f"| {gt_path.stem} | " + " | ".join(ious) + " |", flush=True)

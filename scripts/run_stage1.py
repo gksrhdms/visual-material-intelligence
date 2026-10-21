@@ -20,6 +20,7 @@ from vmi.color import color_stats, dominant_colors, render_color_panel, to_hex  
 from vmi.edge import edge_analysis, render_edge_panel  # noqa: E402
 from vmi.io_utils import list_images, load_image, resize_max_side, save_image  # noqa: E402
 from vmi.silhouette import render_silhouette_panel, silhouette_analysis  # noqa: E402
+from vmi.texture import render_texture_panel, texture_analysis  # noqa: E402
 
 
 def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
@@ -64,6 +65,15 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
     timing.update({key: round(value, 3) for key, value in stats.items()})
     timing["dominant_hex"] = to_hex(palette[0][0])
 
+    # --- Texture (Task 8) — 사람 영역 안쪽에서만 측정 ---
+    tx = cfg["texture"]
+    t0 = time.perf_counter()
+    std_map, lap_map, inner, stats = texture_analysis(img, mask, tx["window"])
+    timing["texture_ms"] = (time.perf_counter() - t0) * 1000
+    save_image(render_texture_panel(img, std_map, lap_map, inner, stats, tx["std_scale"], tx["lap_scale"]),
+               out_dir / "texture" / f"{path.stem}.png")
+    timing.update({key: round(value, 3) for key, value in stats.items()})
+
     # --- Edge & contour (Task 5~6) ---
     e = cfg["edge"]
     t0 = time.perf_counter()
@@ -98,9 +108,9 @@ def main():
             print(f"  [FAIL] {path.name}: {e}")
             continue
         rows.append(row)
-        print(f"  {row['file']:<20} grabcut {row['grabcut_ms']:6.1f} ms | color {row['color_ms']:5.1f} ms | "
-              f"achromatic(lab) whole {row['achromatic_lab_whole']:4.0%} -> person {row['achromatic_lab']:4.0%} | "
-              f"dominant {row['dominant_hex']}")
+        print(f"  {row['file']:<20} grabcut {row['grabcut_ms']:6.1f} ms | texture {row['texture_ms']:5.1f} ms | "
+              f"std {row['texture_std']:5.2f} (p90 {row['texture_std_p90']:5.2f}) | "
+              f"laplacian {row['texture_lap']:5.2f} | inner {row['inner_ratio']:.0%}")
 
     if rows:
         out_dir.mkdir(parents=True, exist_ok=True)

@@ -32,3 +32,8 @@ silhouette:
   grabcut_margin_y: 0.02   # [grabcut] 초기 사각형의 상하 여백 (이미지 높이 대비)
   grabcut_iterations: 5    # [grabcut] 반복 횟수
   grabcut_scale: 0.33      # [grabcut] 계산 해상도 배율. x0.5와 IoU 차이 없음, 3배 빠름 (EXP-005)
+
+texture:
+  window: 7         # local std 창 크기(px). mask도 이 크기로 erode해서 실루엣 경계를 제외한다
+  std_scale: 64     # 시각화 고정 스케일 (이미지 간 비교 가능하도록 이미지별 정규화를 하지 않음)
+  lap_scale: 64
