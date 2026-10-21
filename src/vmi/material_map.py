@@ -110,10 +110,12 @@ def load_font(path: str, size: int):
 
 
 def render_material_map(img, mask, std_map, edges, palette, stats: dict, title: str, subtitle: str,
-                        cfg: dict, gt=None) -> np.ndarray:
+                        cfg: dict, gt=None, badge: str | None = None, footer: str | None = None) -> np.ndarray:
     """포스터 한 장(BGR)을 만든다. stats: mean_chroma, achromatic, texture_std, texture_lap, area (+ iou).
 
     gt가 있으면 silhouette 실패를 그래픽과 IoU 수치로 드러낸다.
+    badge: 시스템 출력이 아닌 참고용 포스터임을 표시하는 검은 띠 (예: GT silhouette로 만든 이상적인 경우)
+    footer: 하단 재현 정보 (없으면 cfg["footer"])
     """
     W, H = cfg["canvas"]
     margin, gap = 48, 40
@@ -140,6 +142,13 @@ def render_material_map(img, mask, std_map, edges, palette, stats: dict, title: 
     d.text((col_x, y + 150), subtitle.upper(), font=f(18), fill=INK)
     y += 196
     rule(y)
+    if badge:  # 참고용 포스터 표시: 헤더 바로 아래, 가장 눈에 띄는 위치
+        y += 16
+        d.rectangle([col_x, y, col_x + col_w, y + 30], fill=INK)
+        d.text((col_x + 10, y + 6), badge, font=f(16), fill=PAPER)
+        d.text((col_x, y + 38), "reference image, not system output", font=f(12), fill=MUTED)
+        y += 60
+        rule(y)
 
     # --- 팔레트: 비율 막대 + 색상 목록 ---
     y += 18
@@ -208,7 +217,7 @@ def render_material_map(img, mask, std_map, edges, palette, stats: dict, title: 
         d.text((col_x + 64, y + 22), "ring / small dot: compared with GT mask", font=f(12), fill=MUTED)
 
     # --- 하단: 재현 정보 ---
-    d.text((col_x, H - margin - 34), cfg["footer"], font=mono(11), fill=MUTED)
+    d.text((col_x, H - margin - 34), footer or cfg["footer"], font=mono(11), fill=MUTED)
     d.text((col_x, H - margin - 16), "PHASE 1 — CLASSICAL CV", font=f(12), fill=INK)
 
     return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)

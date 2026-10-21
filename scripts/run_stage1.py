@@ -27,6 +27,23 @@ from vmi.silhouette import render_silhouette_panel, silhouette_analysis  # noqa:
 from vmi.texture import render_texture_panel, texture_analysis  # noqa: E402
 
 
+def render_ideal_poster(img, gt, edges, cfg: dict, title: str, subtitle: str):
+    """GT mask를 silhouette으로 쓴 '이상적인 경우' 포스터. 시스템 출력이 아니라 PHASE 2의 목표(상한선)다.
+
+    그림과 수치가 같은 영역을 설명하도록 색·texture·팔레트도 GT 영역에서 다시 계산한다.
+    """
+    c, tx = cfg["color"], cfg["texture"]
+    stats, _ = color_stats(img, c["method"], c["sat_threshold"], c["chroma_threshold"], c["dark_threshold"], gt)
+    palette = dominant_colors(img, c["k"], c["sample_size"], cfg["seed"], gt)
+    std_map, _, _, ts = texture_analysis(img, gt, tx["window"])
+    return render_material_map(
+        img, gt, std_map, edges, palette,
+        {"mean_chroma": stats["mean_chroma"], "achromatic": stats["achromatic_lab"],
+         "texture_std": ts["texture_std"], "texture_lap": ts["texture_lap"], "area": float((gt > 0).mean())},
+        title=title, subtitle=subtitle, cfg=cfg["material_map"],
+        badge="IDEAL — GT SILHOUETTE", footer="GT mask · chroma T15 · cell 8px · texture 7px")
+
+
 def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
     """이미지 한 장을 처리하고 단계별 시간(ms)을 반환한다."""
     timing = {"file": path.name}
@@ -98,16 +115,20 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
 
     t0 = time.perf_counter()
     number, suffix = path.stem.split("_", 1)
+    subtitle = suffix if group_of(path.stem) == suffix else f"{group_of(path.stem)} / {suffix}"
     poster = render_material_map(
         img, mask, std_map, edges, palette,
         {"mean_chroma": timing["mean_chroma"], "achromatic": timing["achromatic_lab"],
          "texture_std": timing["texture_std"], "texture_lap": timing["texture_lap"],
          "area": timing[f"area_{s['method']}"], "iou": timing["gt_iou"]},
         gt=gt,
-        title=number, cfg=cfg["material_map"],
-        subtitle=suffix if group_of(path.stem) == suffix else f"{group_of(path.stem)} / {suffix}")
+        title=number, subtitle=subtitle, cfg=cfg["material_map"])
     timing["material_map_ms"] = (time.perf_counter() - t0) * 1000
     save_image(poster, out_dir / "material_map" / f"{path.stem}.png")
+
+    if gt is not None:  # 참고용: silhouette이 완벽했다면 (시스템 출력과 다른 폴더에 저장)
+        save_image(render_ideal_poster(img, gt, edges, cfg, number, subtitle),
+                   out_dir / "material_map_gt" / f"{path.stem}.png")
     return timing
 
 
