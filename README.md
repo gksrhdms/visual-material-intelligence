@@ -2,11 +2,17 @@
 
 사진 속 인물과 의상을 Computer Vision으로 분석하고, 영역·색·질감·구조 정보를 하나의 시각 언어인 **Material Map**으로 변환하는 시스템.
 
-> **Status — PHASE 1 (Classical CV) 완료.** 딥러닝 없이 OpenCV만으로 만든 end-to-end baseline.
+> **Status — 진행 중.** PHASE 1(Classical CV): 딥러닝 없이 OpenCV만으로 만든 end-to-end baseline 완료.
 > 다음 단계(PHASE 2)는 이 baseline의 측정된 한계를 pretrained 모델로 개선하는 것. 로드맵: [docs/ROADMAP.md](docs/ROADMAP.md)
 
-<!-- DEMO: 현재 결과 이미지는 라이선스 미확인(Pinterest) 사진에서 생성되어 공개하지 않는다.
-     공개용 사진(직접 촬영 / Unsplash·Pexels)으로 재생성한 뒤 contact sheet를 이 위치에 넣는다. -->
+<p align="center">
+  <img src="docs/images/p03-material-map.jpg" width="520" alt="Material Map: 패턴 스커트는 큰 점, 매끈한 블라우스는 작은 점">
+</p>
+
+![사진 → 사람 분리(GrabCut) → 질감 맵(local std) → Material Map](docs/images/pipeline-stages.jpg)
+
+> README의 이미지는 공개 가능한 사진(Pexels, 본인 사진 · 촬영자 동의)으로 생성했다 — 출처: [data/public/SOURCES.md](data/public/SOURCES.md).
+> 아래 수치는 모두 별도의 실험 세트 25장 기준이다 (라이선스 미확인으로 원본 비공개).
 
 ## Problem
 
@@ -92,6 +98,10 @@ CV 출력을 장식 없이 그대로 시각 언어로 옮긴다. 데이터 시�
 
 실패를 숨기지 않는다: GT가 있는 이미지는 시스템이 틀린 칸을 그래픽으로 드러내고, GT silhouette로 만든 "IDEAL" 포스터를 별도 폴더에 참고용으로 둔다 (PHASE 2의 목표치).
 
+| 시스템 출력 — 복잡한 거리 배경, silhouette IoU 0.30 | IDEAL — GT silhouette (참고용, 시스템 출력 아님) |
+|---|---|
+| <img src="docs/images/p05-material-map.jpg" width="400" alt="건물 창문이 사람으로 잡힌 칸이 회색 빈 원으로 표시된 포스터"> | <img src="docs/images/p05-ideal.jpg" width="400" alt="GT mask로 만든 참고용 포스터"> |
+
 ## Technical Stack
 
 Python 3.11 · OpenCV 5.0 · NumPy · Pillow (타이포그래피) · PyYAML (실험 설정) — CPU only
@@ -117,7 +127,13 @@ python scripts/check_env.py                 # 환경 및 입력 이미지 확인
 python scripts/run_stage1.py                # 전체 pipeline → results/
 python scripts/make_contact_sheet.py        # results/sheets/ (포스터 그리드, 단계별 비교)
 python scripts/evaluate_silhouette.py       # GT 대비 silhouette 평가 (data/masks 필요)
+
+# 다른 이미지 폴더 (예: 공개용 이미지 세트)
+python scripts/run_stage1.py --input data/public --output results_public --masks data/public_masks
+python scripts/make_contact_sheet.py --results results_public
 ```
+
+GT mask는 선택 사항이다. `{이름}.png` 또는 도구 출력 이름 그대로(`{이름}_mask.png`) 넣으면 크기·채널을 맞춰 읽는다.
 
 실험 재현 스크립트: `exp003_chroma_threshold.py`, `exp006_masked_color.py`, `exp007_texture_groups.py`
 설정: `configs/stage1.yaml` — 모든 파라미터와 그 근거 실험 번호가 주석으로 기록되어 있다.
