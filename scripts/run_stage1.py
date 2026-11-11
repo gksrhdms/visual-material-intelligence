@@ -19,7 +19,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))  # src/vmi를 import하기 위해 경로 추가
 
-from vmi.dataset import find_gt_mask, group_of  # noqa: E402
+from vmi.dataset import find_gt_mask, group_of, load_gt_mask  # noqa: E402
 from vmi.color import color_stats, dominant_colors, render_color_panel, to_hex  # noqa: E402
 from vmi.edge import edge_analysis, render_edge_panel  # noqa: E402
 from vmi.material_map import render_material_map  # noqa: E402
@@ -112,7 +112,7 @@ def process_one(path: Path, cfg: dict, out_dir: Path, mask_dir: Path) -> dict:
     gt, timing["gt_iou"] = None, None
     gt_path = find_gt_mask(mask_dir, path.stem)
     if gt_path is not None:
-        gt = np.where(cv2.imread(str(gt_path), cv2.IMREAD_GRAYSCALE) > 127, 255, 0).astype(np.uint8)
+        gt = load_gt_mask(gt_path, mask.shape)
         timing["gt_iou"] = round(binary_metrics(mask, gt)["iou"], 4)
 
     t0 = time.perf_counter()
