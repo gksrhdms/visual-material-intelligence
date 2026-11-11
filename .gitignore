@@ -8,6 +8,12 @@ data/raw/
 data/masks/
 results/
 
+# 공개용 이미지(Pexels): 원본 재배포는 하지 않고 출처 기록(SOURCES.md)만 올린다
+data/public/*
+!data/public/SOURCES.md
+data/public_masks/
+results_public/
+
 # IDE
 .idea/
 .vscode/

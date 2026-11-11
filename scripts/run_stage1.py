@@ -2,6 +2,8 @@
 
 실행: python scripts/run_stage1.py
       python scripts/run_stage1.py --config configs/stage1.yaml
+      python scripts/run_stage1.py --input data/public --output results_public --masks data/public_masks
+        (공개용 이미지처럼 실험 세트와 다른 폴더를 처리할 때. 지정하지 않으면 config 값을 쓴다)
 """
 import argparse
 import csv
@@ -44,7 +46,7 @@ def render_ideal_poster(img, gt, edges, cfg: dict, title: str, subtitle: str):
         badge="IDEAL — GT SILHOUETTE", footer="GT mask · chroma T15 · cell 8px · texture 7px")
 
 
-def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
+def process_one(path: Path, cfg: dict, out_dir: Path, mask_dir: Path) -> dict:
     """이미지 한 장을 처리하고 단계별 시간(ms)을 반환한다."""
     timing = {"file": path.name}
 
@@ -108,7 +110,7 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
     # --- Material Map (Task 9) — 앞 단계의 결과를 하나의 포스터로 ---
     # GT mask가 있으면 silhouette 실패를 포스터에 표시만 한다 (분석에는 쓰지 않음)
     gt, timing["gt_iou"] = None, None
-    gt_path = find_gt_mask(ROOT / "data" / "masks", path.stem)
+    gt_path = find_gt_mask(mask_dir, path.stem)
     if gt_path is not None:
         gt = np.where(cv2.imread(str(gt_path), cv2.IMREAD_GRAYSCALE) > 127, 255, 0).astype(np.uint8)
         timing["gt_iou"] = round(binary_metrics(mask, gt)["iou"], 4)
@@ -135,20 +137,24 @@ def process_one(path: Path, cfg: dict, out_dir: Path) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=str(ROOT / "configs" / "stage1.yaml"))
+    parser.add_argument("--input", help="입력 이미지 폴더 (기본: config의 input_dir)")
+    parser.add_argument("--output", help="결과 폴더 (기본: config의 output_dir)")
+    parser.add_argument("--masks", default="data/masks", help="GT mask 폴더 (없어도 됨)")
     args = parser.parse_args()
 
     with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    in_dir = ROOT / cfg["input_dir"]
-    out_dir = ROOT / cfg["output_dir"]
+    in_dir = ROOT / (args.input or cfg["input_dir"])
+    out_dir = ROOT / (args.output or cfg["output_dir"])
+    mask_dir = ROOT / args.masks
     paths = list_images(in_dir)
     print(f"{len(paths)} images in {in_dir}")
 
     rows, failed = [], []
     for path in paths:
         try:
-            row = process_one(path, cfg, out_dir)
+            row = process_one(path, cfg, out_dir, mask_dir)
         except Exception as e:  # 한 장이 실패해도 나머지는 계속 처리
             failed.append(path.name)
             print(f"  [FAIL] {path.name}: {e}")

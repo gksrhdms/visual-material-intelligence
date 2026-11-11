@@ -5,6 +5,7 @@
 
 실행: python scripts/make_contact_sheet.py
       python scripts/make_contact_sheet.py --stems 002_plain 013_pattern 007_complexbg
+      python scripts/make_contact_sheet.py --results results_public   (공개용 결과, stems 생략 시 전체)
 """
 import argparse
 import sys
@@ -20,8 +21,17 @@ sys.path.insert(0, str(ROOT / "src"))
 from vmi.io_utils import list_images, load_image, save_image  # noqa: E402
 from vmi.material_map import INK, MUTED, PAPER, load_font  # noqa: E402
 
-RESULTS = ROOT / "results"
+DEFAULT_RESULTS = ROOT / "results"
+DEFAULT_STEMS = ["002_plain", "013_pattern", "017_metalic", "007_complexbg"]
 FONT = "C:/Windows/Fonts/bahnschrift.ttf"
+
+
+def find_by_stem(folder: Path, stem: str) -> Path:
+    """확장자와 상관없이 같은 이름의 이미지를 찾는다 (.jpg / .jpeg / .png 등)."""
+    for path in list_images(folder):
+        if path.stem == stem:
+            return path
+    raise FileNotFoundError(f"{folder}에서 {stem} 이미지를 찾을 수 없습니다")
 
 
 def fit(img: np.ndarray, box: tuple[int, int]) -> np.ndarray:
@@ -45,8 +55,10 @@ def add_text(canvas: np.ndarray, items: list[tuple[tuple[int, int], str, int, tu
     return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
 
-def material_map_grid(cols: int = 5, cell: tuple[int, int] = (324, 405), gap: int = 12, margin: int = 48):
-    posters = list_images(RESULTS / "material_map")
+def material_map_grid(results: Path, cols: int = 5, cell: tuple[int, int] = (324, 405), gap: int = 12,
+                      margin: int = 48):
+    posters = list_images(results / "material_map")
+    cols = min(cols, len(posters))
     rows = -(-len(posters) // cols)  # 올림 나눗셈
     header = 70
     W = 2 * margin + cols * cell[0] + (cols - 1) * gap
@@ -63,8 +75,12 @@ def material_map_grid(cols: int = 5, cell: tuple[int, int] = (324, 405), gap: in
     ])
 
 
-def stages(stems: list[str], cell: tuple[int, int] = (300, 405), gap: int = 12, margin: int = 48):
+def stages(results: Path, stems: list[str], cell: tuple[int, int] = (300, 405), gap: int = 12, margin: int = 48):
     labels = ["ORIGINAL", "SILHOUETTE · GrabCut", "TEXTURE · local std", "MATERIAL MAP", "IDEAL · GT silhouette"]
+    # GT 포스터가 모든 행에 있을 때만 IDEAL 열을 넣는다 (공개용 이미지는 GT가 없을 수 있다)
+    has_gt = all((results / "material_map_gt" / f"{stem}.png").exists() for stem in stems)
+    if not has_gt:
+        labels = labels[:-1]
     header, label_h = 70, 28
     W = 2 * margin + len(labels) * cell[0] + (len(labels) - 1) * gap
     H = 2 * margin + header + label_h + len(stems) * cell[1] + (len(stems) - 1) * gap
@@ -75,15 +91,15 @@ def stages(stems: list[str], cell: tuple[int, int] = (300, 405), gap: int = 12, 
         texts.append(((margin + c * (cell[0] + gap), margin + header), label, 14, MUTED))
 
     for r, stem in enumerate(stems):
-        original = load_image(RESULTS / "original" / f"{stem}.jpg")
+        original = load_image(find_by_stem(results / "original", stem))
         h, w = original.shape[:2]
-        mask = cv2.imread(str(RESULTS / "silhouette" / "mask" / f"{stem}.png"), cv2.IMREAD_GRAYSCALE)
+        mask = cv2.imread(str(results / "silhouette" / "mask" / f"{stem}.png"), cv2.IMREAD_GRAYSCALE)
         cutout = np.full_like(original, PAPER[::-1])
         cutout[mask > 0] = original[mask > 0]
-        texture = load_image(RESULTS / "texture" / f"{stem}.png")[:h, w:2 * w]  # 패널의 가운데 열 = local std map
-        tiles = [original, cutout, texture,
-                 load_image(RESULTS / "material_map" / f"{stem}.png"),
-                 load_image(RESULTS / "material_map_gt" / f"{stem}.png")]
+        texture = load_image(results / "texture" / f"{stem}.png")[:h, w:2 * w]  # 패널의 가운데 열 = local std map
+        tiles = [original, cutout, texture, load_image(results / "material_map" / f"{stem}.png")]
+        if has_gt:
+            tiles.append(load_image(results / "material_map_gt" / f"{stem}.png"))
         y = margin + header + label_h + r * (cell[1] + gap)
         for c, tile in enumerate(tiles):
             x = margin + c * (cell[0] + gap)
@@ -93,12 +109,18 @@ def stages(stems: list[str], cell: tuple[int, int] = (300, 405), gap: int = 12, 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stems", nargs="+", default=["002_plain", "013_pattern", "017_metalic", "007_complexbg"])
+    parser.add_argument("--results", default=str(DEFAULT_RESULTS), help="run_stage1.py의 결과 폴더")
+    parser.add_argument("--stems", nargs="+", help="단계별 비교에 넣을 이미지 (생략 시: 기본 실험 세트는 4장, 그 외는 전체)")
     args = parser.parse_args()
 
-    out = RESULTS / "sheets"
-    save_image(material_map_grid(), out / "material_map_grid.png")
-    save_image(stages(args.stems), out / "stages.png")
+    results = ROOT / args.results
+    stems = args.stems
+    if stems is None:
+        stems = DEFAULT_STEMS if results == DEFAULT_RESULTS else [p.stem for p in list_images(results / "material_map")]
+
+    out = results / "sheets"
+    save_image(material_map_grid(results), out / "material_map_grid.png")
+    save_image(stages(results, stems), out / "stages.png")
     print(f"saved -> {out}")
 
 
